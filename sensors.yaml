@@ -1,0 +1,163 @@
+##############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   28/04/20
+#   @subject        :   Sensors File 
+#   @description    :   Sensors for home assistant
+#   @version        :   1.0
+#   @Comment        :   Updated to ensure correct behaviour in GIT
+###############################################################################
+
+# Home Assistant Uptime Tracker 
+  - platform: uptime
+    name: Time_online 
+    # unit_of_measurement: minutes
+
+
+# Here Travel Platform travel from Home to Winchester Park and Ride
+  - platform: here_travel_time
+    api_key: !secret here_api
+    origin_latitude: !secret home_lat
+    origin_longitude: !secret home_lon
+    destination_latitude: !secret dest_lat
+    destination_longitude: !secret dest_lon
+    traffic_mode: true # take into account current travel conditions 
+    scan_interval: 900 # get data every 15 minutes
+
+# NUC Sensor
+  - platform: systemmonitor
+    resources:
+      - type: disk_use_percent
+      - type: memory_free
+      - type: memory_use_percent
+      - type: ipv4_address
+        arg: enp3s0
+      - type: processor_temperature
+      - type: last_boot
+
+
+# # Climacel air quality feed
+
+#   ## Weather climatecell.co
+#   - platform: climacell
+#     api_key: !secret climacell_api
+#     name: climacell
+#     latitude: !secret home_lat
+#     longitude: !secret home_lon
+#     monitored_conditions:
+#       realtime:
+#         conditions:
+#           - sunset
+#           - sunrise
+#           - moon_phase
+#           - pollen_tree
+#           - pollen_weed
+#           - pollen_grass
+#           - road_risk_score
+
+#       hourly:
+#         forecast_observations: 1
+#         conditions:
+#           - moon_phase
+#           - weather_condition
+#           - pm25
+#           - pm10
+#           - o3
+#           - no2
+#           - co
+#           - so2
+#           - epa_aqi
+#           - epa_primary_pollutant
+#           - epa_health_concern
+#           - pollen_tree
+#           - pollen_weed
+#           - pollen_grass
+#           - road_risk_score
+#         scan_interval:
+#           # At least one of these must be specified:
+#           days: 0
+#           hours: 1
+#           minutes: 0
+#           seconds: 0
+#           milliseconds: 0
+
+# Tidal Data for   - platform: worldtidesinfocustom
+    api_key: !secret wt_api
+    name: tides
+    latitude: !secret wt_lat
+    longitude: !secret wt_long
+
+  - platform: template
+    sensors:
+      tide_next_high:
+        friendly_name: "Next High Tide Time"
+        value_template: "{{ as_timestamp(states.sensor.tides.attributes.high_tide_time_utc) | timestamp_custom('%a %d/%m %H:%M') }}"
+      tide_next_low:
+        value_template: "{{ as_timestamp(states.sensor.tides.attributes.low_tide_time_utc) | timestamp_custom('%a %d/%m %H:%M') }}"
+        friendly_name: "Next Low Tide"
+      tide_next_high_height:
+        value_template: "{{ state_attr('sensor.tides','high_tide_height')  }}"
+        friendly_name: "Next High Tide Height"
+        unit_of_measurement: m
+      tide_next_low_height:
+        value_template: "{{ state_attr('sensor.tides','low_tide_height')  }}"
+        friendly_name: "Next Low Tide Height"
+        unit_of_measurement: m
+      tide_credit:
+        value_template: "{{ state_attr('sensor.tides','CreditCallUsed')  }}"
+        friendly_name: "Tide Credit"
+        unit_of_measurement: credit
+      tide_current_height:
+        value_template: "{{ state_attr('sensor.tides','current_height')  }}"
+        friendly_name: "Tide Current Height"
+        unit_of_measurement: m
+
+
+# Unavailable sensors tracker 
+  # - platform: template
+    # sensors:
+      unavailable_entities:
+        friendly_name: Unavailable Entities
+        unit_of_measurement: entities
+        icon_template: "{{ 'mdi:check-circle' if is_state('sensor.unavailable_entities','0') else 'mdi:alert-circle' }}"
+        value_template: >
+          {{ states|selectattr('state','in',['unavailable','unknown','none'])|rejectattr('domain','eq','group')
+            |rejectattr('entity_id','in',state_attr('group.ignored_entities','entity_id'))|list|count }}
+        attribute_templates:
+          entities: >
+            {{ states|selectattr('state','in',['unavailable','unknown','none'])|rejectattr('domain','eq','group')
+                |rejectattr('entity_id','in',state_attr('group.ignored_entities','entity_id'))|map(attribute='entity_id')|list }}
+
+# Temperature Difference Sensors
+      bedroom_temp_diff:
+        value_template: '{% if states.sensor.southampton_alpine_centre_temperature.state %}{float(states.sensor.southampton_alpine_centre_temperature.state) - float(states.sensor.bedroom_multi_temperature.state)}{% endif %}'
+        friendly_name: Master Bedroom Temperature Difference
+
+### Experimenting with rate of change
+
+  - platform: derivative
+    source: sensor.lounge_multi_temperature
+    name: Lounge ROC Temperature
+    round: 1
+    unit_time: h
+    time_window: "00:30:00"
+
+  - platform: derivative
+    source: sensor.utility_multi_temperature
+    name: Utility ROC Temperature
+    round: 1
+    unit_time: h
+    time_window: "00:30:00"
+
+  - platform: derivative
+    source: sensor.bathroom_multi_temperature
+    name: Bathroom ROC Temperature
+    round: 1
+    unit_time: h
+    time_window: "00:30:00"
+  
+  - platform: derivative
+    source: sensor.bedroom_multi_temperature
+    name: Bedroom ROC Temperature
+    round: 1
+    unit_time: h
+    time_window: "00:30:00"

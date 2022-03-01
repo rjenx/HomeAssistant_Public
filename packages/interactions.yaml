@@ -1,0 +1,73 @@
+###############################################################################
+#   @author         :   Richard Jenkins
+#   @date           :   07/02/22
+#   @subject        :   Interactions
+#   @description    :   Human interactions 
+#   @version        :   0.1
+#   @Comment        :   
+###############################################################################
+
+group:
+
+
+###################################
+input_boolean:
+
+  morning:
+    name: morning interaction
+
+###################################
+script:
+
+#  testing templating announcements
+  welcome:
+    alias: morning Greeting
+    sequence:
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.living_room_sonos
+          message: >
+            Good morning the weather outside is currently 
+            {{states.sensor.southampton_alpine_centre_weather.state}} with a 
+            {{states.sensor.southampton_alpine_centre_probability_of_precipitation.state}} percent probability of rain and feels like
+            {{states.sensor.southampton_alpine_centre_feels_like_temperature_daily.state|round}} degrees outside.
+          options:
+            gender: female
+          language: en-GB
+#####################################
+automation:
+
+  - id: INT.001
+    alias: morning announcement 
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.hall_motion
+        to: 'on'
+    condition:
+      - condition: state
+        entity_id: input_boolean.morning
+        state: "off"
+      - condition: time
+        after: " 07:00:00"
+        before: " 10:00:00"
+    action:
+      - delay: 5
+      - service: homeassistant.turn_on
+        entity_id: script.welcome
+      - service: input_boolean.turn_on
+        entity_id: input_boolean.morning
+      
+  - id: INT.002
+    alias: morning IB off 
+    trigger:
+      - platform: time
+        at: "00:18:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.morning
+        state: "on"
+    action:
+      - service: input_boolean.turn_off
+        entity_id: input_boolean.morning
+      
+#####################################

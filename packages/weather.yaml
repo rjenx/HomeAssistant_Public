@@ -1,0 +1,147 @@
+###############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   7/06/20
+#   @subject        :   Weather
+#   @description    :   Weather automations 
+#   @version        :   1.5
+#   @Comment        :   Weather integration and automation 
+###############################################################################
+binary_sensor:
+  - platform: trend
+    sensors:
+      rain_prob:
+        entity_id: sensor.southampton_alpine_centre_probability_of_precipitation
+        sample_duration: 1800
+        min_gradient: 0.00278
+        max_samples: 60
+
+##############################  INPUT BOOLEAN ################################
+input_boolean:
+  rain_state:
+      name: Guard Mode
+      icon: mdi:security
+
+##############################  AUTOMATION ####################################
+automation:
+
+  - id: WEA.001
+    alias: High Wind F6
+    trigger:
+      - platform: state
+        entity_id: sensor.southampton_alpine_centre_wind_speed
+    condition:
+      condition: and
+      conditions:
+        - condition: state
+          entity_id: input_boolean.rain_state
+          state: 'off'
+        - condition: numeric_state
+          entity_id: sensor.southampton_alpine_centre_wind_speed
+          above: 25
+          below: 32
+    action:
+    # message the webpage ####################
+      - service: persistent_notification.create
+        data:
+          message: "Strong winds at the moment, Force 6"
+          title: "Gales"
+    # Message our email addresses  and announce #########
+      - service: notify.alarm_email
+        data:
+            title: 'Gales'
+            message: 'Gale force winds at the moment, speed greater than 30 mph, Force 6'
+  - id: WEA.002
+    alias: High Wind gales F7
+    trigger:
+      - platform: state
+        entity_id: sensor.southampton_alpine_centre_wind_speed
+    condition:
+      condition: and
+      conditions:
+        - condition: state
+          entity_id: input_boolean.rain_state
+          state: 'off'
+        - condition: numeric_state
+          entity_id: sensor.southampton_alpine_centre_wind_speed
+          above: 32
+          below: 54
+    action:
+    # message the webpage ####################
+      - service: persistent_notification.create
+        data:
+          message: "Gale force winds at the moment, speed greater than 32 mph, Force 7 or more"
+          title: "Gales"
+    # Message our email addresses  and announce #########
+      - service: notify.alarm_email
+        data:
+            title: 'Gales'
+            message: 'Gale force winds at the moment, speed greater than 32 mph, Force 7 or more'
+  - id: WEA.003
+    alias: Storm Force Wind  F9 - 10
+    trigger:
+      - platform: state
+        entity_id: sensor.southampton_alpine_centre_wind_speed
+    condition:
+      condition: and
+      conditions:
+        - condition: state
+          entity_id: input_boolean.rain_state
+          state: 'off'
+        - condition: numeric_state
+          entity_id: sensor.southampton_alpine_centre_wind_speed
+          above: 55
+    action:
+    # message the webpage ####################
+      - service: persistent_notification.create
+        data:
+          message: "Warning Storm Force Winds, speed greater than 55 mph, Force 10 or more"
+          title: "Gales"
+    # Message our email addresses  and announce #########
+      - service: notify.alarm_email
+        data:
+            title: 'Gales'
+            message: 'Warning Storm Force Winds, speed greater than 55 mph, Force 10 or more'
+
+  - id: WEA.004
+    alias: High Wind F6
+    trigger:
+      - platform: state
+        entity_id: sensor.southampton_alpine_centre_wind_speed
+    condition:
+      condition: and
+      conditions:
+        - condition: state
+          entity_id: input_boolean.rain_state
+          state: 'off'
+        - condition: numeric_state
+          entity_id: sensor.southampton_alpine_centre_wind_speed
+          above: 25
+          below: 32
+    action:
+    # message the webpage ####################
+      - service: persistent_notification.create
+        data:
+          message: "Strong winds at the moment, Force 6"
+          title: "Gales"
+    # Message our email addresses  and announce #########
+      - service: notify.alarm_email
+        data:
+            title: 'Gales'
+            message: 'Gale force winds at the moment, speed greater than 30 mph, Force 6'
+
+#### Notify if Temperature in house drops below freezing
+#### temperature entity is an attribute of climate.heating, need to resolve another source or create entities 
+
+
+##############################  SCRIPTS ########################################
+#script:
+# none 
+
+##############################  SCENES ########################################
+#scenes:
+# none
+
+#############################  GROUPS ########################################
+#groups:
+
+#############################  END ############################################

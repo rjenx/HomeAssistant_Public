@@ -1,0 +1,119 @@
+###############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   23/08/20
+#   @subject        :   car BMW Integration 
+#   @description    :   BMW Automations 
+#   @version        :   1.7
+#   @Comment        :   
+###############################################################################
+# homeassistant:
+#   customize:
+
+##############################  AUTOMATION ####################################
+# binary_sensor.car_door_lock_state
+# on = unlocked 
+# off = locked
+automation:
+  - id: carC.001
+    alias: car arrive home and not locked
+    trigger:
+      - platform: state
+        entity_id: device_tracker.car
+        to: 'home'
+        for:
+          minutes: 20
+    condition:
+      - condition: state
+        entity_id: binary_sensor.car_door_lock_state
+        state: 'on'
+    action: 
+      - service: homeassistant.turn_on
+        entity_id: lock.car_lock
+      - delay: 3
+      - service: sonos.snapshot
+        entity_id: media_player.living_room_sonos
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.living_room_sonos
+          message: 'The car has been locked'
+          options:
+            gender: female
+          language: en-GB
+      - delay: 3
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+
+  - id: carC.002
+    alias: car unlocked at home and not relocked
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.car_door_lock_state
+        to: 'on'
+        for: 
+          minutes: 10
+    condition: 
+      - condition: state
+        entity_id: device_tracker.car
+        state: 'home'   
+    action: 
+      - service: homeassistant.turn_off
+        entity_id: lock.car_lock
+      - delay: 3
+      - service: sonos.snapshot
+        entity_id: media_player.living_room_sonos
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.living_room_sonos
+          message: 'The car has been unlocked for 5 minutes'
+          options:
+            gender: female
+          language: en-GB
+      - delay: 3
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+      
+      
+        
+  
+
+##############################  INPUT BOOLEAN ################################
+
+input_boolean:
+# none
+
+
+##############################  SCRIPTS ########################################
+# script:
+  # car_check:
+  #   sequence: 
+  #     choose:
+  #       - conditions:
+  #           - condition: state
+  #             entity_id: car_door_lock_state
+  #             state: 'off'
+  #         sequence:
+  #             - service: input_boolean.turn_on
+  #               entity_id: input_boolean.guard_mode # set guard mode if doors and windows closed
+  #       - conditions:
+  #           - condition: state
+  #             entity_id: group.opening
+  #             state: 'on'
+  #         sequence:
+  #             - service: input_boolean.turn_on
+  #               entity_id: input_boolean.security_issue # set security issue if doors or windows open
+  #             - service: script.sonos_say
+  #               data:
+  #                 sonos_entity: media_player.living_room_sonos
+  #                 volume: 0.5
+  #                 message: 'Attention, a door or window is open, the alarm could not arm'
+  #                 delay: '00:02:05'
+
+##############################  SCENES ########################################
+# scenes:
+# none
+
+#############################  GROUPS ########################################
+# group:
+# none
+
+#############################  END ############################################

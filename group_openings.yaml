@@ -1,0 +1,11 @@
+  - binary_sensor.frontdoor
+  - binary_sensor.kitchen_door
+  - binary_sensor.kitchen_window
+  - binary_sensor.patio_door
+  - binary_sensor.garage_door
+  - binary_sensor.hall_window
+  - binary_sensor.morning_room_window
+  - binary_sensor.lounge_window_right
+  - binary_sensor.lounge_window_left
+  - binary_sensor.dining_room_window
+  - binary_sensor.garage_upandover

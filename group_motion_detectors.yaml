@@ -1,0 +1,6 @@
+# group motion detectors 
+  - binary_sensor.landing_motion
+  - binary_sensor.lounge_motion
+  - binary_sensor.morning_motion 
+  - binary_sensor.dining_motion
+  - binary_sensor.garage_motion_2

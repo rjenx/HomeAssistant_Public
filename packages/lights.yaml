@@ -1,0 +1,831 @@
+###############################################################################
+#   @author         :   Jenx (Copyright 2020 - 2021)
+#   @date           :   04/06/20
+#   @subject        :   lights
+#   @version        :   1.4
+#   @description    :   lights for home assistant
+###############################################################################
+# LIG.026
+##############################  AUTOMATION ########################################
+
+automation:
+  ########################
+  # Patio Lights automation
+  ########################
+
+  # Turn on Patio Light if movement detected in garden
+  - id: LIG.003
+    alias: Patio Light on if movement detected
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.garden_motion
+    condition:
+      - condition: state
+        entity_id: binary_sensor.garden_motion
+        state: "on"
+      - condition: time
+        after: "23:00"
+        before: "06:00"
+    action:
+      - service: light.turn_on
+        entity_id: light.patio
+      - delay:
+          seconds: 120
+      - service: light.turn_off
+        entity_id: light.patio
+
+  # Patio Light on when back door opened at night
+  - id: LIG.001
+    alias: Toggle Patio Light 
+    mode: restart
+    trigger:
+      - entity_id: binary_sensor.kitchen_door
+        platform: state
+        id: door_open
+        to: "on"
+      - entity_id: binary_sensor.kitchen_door
+        platform: state
+        id: door_closed
+        to: "off"
+    condition:
+      - condition: state
+        entity_id: sun.sun
+        state: "below_horizon"
+    action:
+      - choose:
+          - conditions: 
+              - condition: trigger
+                id: door_open
+            sequence:
+              - service: light.turn_on
+                entity_id: light.patio
+                data:
+                  brightness: 254
+                  color_temp: 200
+          - conditions:
+              - condition: trigger
+                id: door_closed
+            sequence:
+              - delay: 120
+              - service: light.turn_off
+                entity_id: light.patio
+
+
+
+  ########################
+  # Lounge Lights automation
+  ########################
+
+  - id: LIG.002
+    alias: Toggle lounge Light 
+    mode: restart
+    trigger:
+      - entity_id: binary_sensor.lounge_motion
+        platform: state
+        id: lounge_occupied
+        to: "on"
+      - entity_id: binary_sensor.lounge_motion
+        platform: state
+        id: lounge_empty
+        to: "off"
+        for: 300 # 5 minutes
+      - entity_id: sensor.lounge_lightlevel
+        platform: numeric_state
+        id: lounge_bright
+        above: 10
+      - entity_id: input_boolean.lounge_on
+        platform: state
+        id: lounge_on
+        to: "on"
+      - entity_id: input_boolean.lounge_on
+        platform: state
+        id: lounge_off
+        to: "off"
+    action:
+      - choose:
+          - conditions: # Dark turn on light and fire if off 
+              - condition: numeric_state
+                entity_id: sensor.lounge_lightlevel
+                below: 7
+              - condition: trigger
+                id: lounge_occupied
+              - condition: state
+                entity_id: light.lounge_group
+                state: 'off'
+            sequence:
+              - service: light.turn_on
+                entity_id: light.lounge_group
+                data:
+                  brightness: 254
+              - service: switch.turn_on
+                entity_id: switch.fire
+          - conditions: # Turn on light if IB is switched on 
+              - condition: trigger
+                id: lounge_on
+            sequence:
+              - service: light.turn_on
+                entity_id: light.lounge_group
+              - service: switch.turn_on
+                entity_id: switch.fire
+          - conditions: # turn off light if no movement for 2 minutes and IB is off 
+              - condition: trigger
+                id: lounge_empty
+              - condition: state
+                entity_id: input_boolean.lounge_full
+                state: "off"
+            sequence:
+              - delay: 120
+              - service: light.turn_off
+                entity_id: light.lounge_group
+              - service: switch.turn_off
+                entity_id: switch.fire
+          - conditions: # turn off light if the light level is bright for more than 60 seconds 
+              - condition: trigger
+                id: lounge_bright
+            sequence:
+              - delay: 60
+              - service: light.turn_off
+                entity_id: light.lounge_group
+              - service: switch.turn_off
+                entity_id: switch.fire
+          - conditions: # turn off light if the light level is bright for more than 60 seconds 
+                - condition: trigger
+                  id: lounge_off
+            sequence:
+              - service: light.turn_off
+                entity_id: light.lounge_group
+              - service: switch.turn_off
+                entity_id: switch.fire
+
+  # if input selct lounge light is low set the lights to low, 
+  - id: LIG.022
+    alias: Turn on and off lights for lounge
+    trigger: 
+      - platform: state
+        entity_id: input_select.lounge_light
+        to:
+    action:
+      - choose:
+          - conditions: 
+              - condition: state
+                entity_id: input_select.lounge_light
+                state: "low"
+            sequence:
+              - service: scene.turn_on
+                target: 
+                  entity_id: scene.tv
+          - conditions: 
+              - condition: state
+                entity_id: input_select.lounge_light
+                state: "high"
+            sequence:
+              - service: scene.turn_on
+                target: 
+                  entity_id: scene.loungefull
+          - conditions: 
+              - condition: state
+                entity_id: input_select.lounge_light
+                state: "off"
+            sequence:
+              - service: scene.turn_on
+                target: 
+                  entity_id: scene.loungeoff
+
+ 
+  ########################
+  # Morning Room Lights automation
+  ########################
+
+  # Morning room on if dark 
+  - id: LIG.008
+    alias: Morning Room on after dark ### Switch on the morning room if dark
+    trigger:
+      - entity_id: binary_sensor.morning_motion
+        platform: state
+        to: 'on'
+    action:
+      - choose:
+          - conditions: 
+              - condition: numeric_state
+                entity_id: sensor.morning_lightlevel
+                below: 5
+              - condition: time # Full brightness when suki not in bed
+                after: "07:00:00"
+                before: "23:00:00"
+            sequence:
+              - service: light.turn_on
+                entity_id: light.morning_room_ceiling
+                data:
+                  brightness: 255
+          - conditions: 
+              - condition: numeric_state
+                entity_id: sensor.morning_lightlevel
+                below: 5
+              - condition: time # turn very low auto lights when Suki is in bed
+                after: "23:00:01"
+                before: "06:59:59"
+            sequence:
+              - service: light.turn_on
+                entity_id: light.morning_room_ceiling
+                data:
+                  brightness: 20
+
+  # # Turn off morning room light if no motion for x mins
+  - id: LIG.009
+    alias: Morning Room turnoff if no one is around
+    trigger:
+      entity_id: binary_sensor.morning_motion
+      platform: state
+      to: 'off'
+      for:
+        minutes: 2
+    condition:
+      - condition: state
+        entity_id: input_boolean.morning_light
+        state: "off"
+    action:
+      - service: light.turn_off
+        entity_id: light.morning_room_ceiling
+
+  # # Turn on and off morning room light based on IB morning_light state
+  - id: LIG.024
+    alias: Turn on morrning room Light if IB is on and turn off when off
+    trigger:
+      platform: state
+      entity_id: input_boolean.morning_light
+    action:
+      - choose:
+          - conditions: 
+              - condition: state
+                entity_id: input_boolean.morning_light
+                state: 'on'
+            sequence:
+              - service: light.turn_on
+                entity_id: light.morning_room_ceiling
+                data:
+                  brightness: 200
+          - conditions: 
+              - condition: state
+                entity_id: input_boolean.morning_light
+                state: 'off'
+            sequence:
+              - service: light.turn_off
+                entity_id: light.morning_room_ceiling
+  
+
+  ########################
+  # Security Lights automation
+  ########################
+
+  # See SEC014 for lights, fire and sky turned off when alarm armed_away or vacation. 
+
+  # Turn on all lights at night if smoke alarm is triggered
+  - id: LIG.010
+    alias: Turn on lights if smoke detected during nighttime
+    trigger: 
+      platform: state
+      entity_id: 
+        - binary_sensor.landing_smoke
+        - binary_sensor.kitchen_smoke
+        - binary_sensor.hall_smoke
+      to: "on"
+    condition:
+      condition: sun
+      after: sunset 
+      before: sunrise
+    action:
+      service: light.turn_on
+      entity_id: group.all_lights
+
+  # Turn on lights if return to home and sun is down
+  - id: LIG.011
+    alias: Turn on lights automatically on return after dark
+    trigger:
+      - platform: state
+        entity_id: group.family
+        from: 'away'
+        to: 'home'
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.home
+        state: 'armed_away'
+      - condition: sun
+        after: sunset
+        before: sunrise
+    action:
+      - service: light.turn_on
+        entity_id: light.hall
+      - service: light.turn_on
+        entity_id: light.lounge_sidetable
+
+  ########################
+  # Dining Room Lights automation
+  ########################
+  # if we are not having dinner, turn off lights after 2 mins
+
+  # Turn on dining room light if someone enters, its dark and lights are off
+  - id: LIG.012
+    alias: Lights on when movement detected in dining room 
+    trigger:
+      - entity_id: binary_sensor.dining_room_motion
+        platform: state
+        to: "on"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.dining_room_lightlevel
+        below: 10 # was 5 but not triggering lights
+      - condition: state
+        entity_id: light.dining_room_group
+        state: "off"
+    action:
+      - service: light.turn_on
+        entity_id: light.dining_room_group
+
+  # Turn off light after 2 minutes unless IB is on. 
+  - id: LIG.013
+    alias: Turn off dining room Light unless IB is on
+    trigger:
+      platform: state
+      entity_id: light.dining_room_group
+      to: "on"
+      for:
+        minutes: 2
+    condition:
+      - condition: state
+        entity_id: input_boolean.dining
+        state: "off"
+    action:
+      - service: light.turn_off
+        entity_id: light.dining_room_group
+
+  # Turn on and off dining room lights based on IB
+  - id: LIG.015
+    alias: Turn on dining room Light if IB is on and turn off when off
+    trigger:
+      platform: state
+      entity_id: input_boolean.dining
+      to:
+    action:
+      - choose:
+          - conditions: 
+              - condition: state
+                entity_id: input_boolean.dining
+                state: "on"
+            sequence:
+              - service: light.turn_on
+                entity_id: light.dining_room_group
+          - conditions: 
+              - condition: state
+                entity_id: input_boolean.dining
+                state: "off"
+            sequence:
+              - service: light.turn_off
+                entity_id: light.dining_room_group
+
+###################################
+  # Hall Lights automation
+###################################
+
+  # #  Turn on lights in hallway if doorbell
+  - id: LIG.014
+    alias: Door Bell rings turn on light
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door_ding
+        to: "on"
+    condition:
+      condition: numeric_state
+      entity_id: sensor.lounge_lightlevel
+      below: 10
+    action:
+      - service: light.turn_on
+        entity_id: light.hall
+      - delay: 300
+      - service: light.turn_off
+        entity_id: light.hall
+
+# Turn on hall light if door opened after dark
+  - id: LIG.023
+    alias: Hall light on after dark if door opened for x mins
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.frontdoor
+        to: 'on'
+    condition:
+      - condition: sun
+        after: sunset
+        before: sunrise
+    action:
+      - service: light.turn_on
+        entity_id: light.hall
+      - delay: 01:00
+      - service: light.turn_off
+        entity_id: light.hall
+
+# Turn on hall light if someone enters, its dark and lights are off
+  - id: LIG.016
+    alias: Lights on when movement detected in hall
+    trigger:
+      - entity_id: binary_sensor.hall_motion
+        platform: state
+        to: 'on'
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.hall_lightlevel
+        below: 15
+      - condition: state
+        entity_id: light.hall
+        state: "off"
+    action:
+      - service: light.turn_on
+        entity_id: light.hall
+
+# Turn off light if no movement in hall for x minutes 
+  - id: LIG.017
+    alias: Turn off hall Light if no movement for x min
+    trigger:
+      platform: state
+      entity_id: binary_sensor.hall_motion
+      to: 'off'
+      for:
+        minutes: 2
+    condition:
+      - condition: state
+        entity_id: light.hall
+        state: 'on'
+    action:
+      service: light.turn_off
+      entity_id: light.hall
+
+# Turn on hall light when family approach house
+  - id: LIG.018
+    alias: Hall light on when approaching house
+    trigger:
+      platform: state
+      entity_id: 
+        - person.rick
+        - person.deb
+        - person.cameron
+      from: 'not_home'
+      to: 'home'
+    condition:
+      - condition: state
+        entity_id: sun.sun
+        state: "below_horizon"
+    action:
+      - service: light.turn_on
+        entity_id: 
+          - light.hall
+          - light.lounge_group
+      - delay: 60
+      - service: light.turn_off
+        entity_id: light.hall
+
+
+# ###################################
+#   # Landing Lights automation
+# ###################################
+#  Switch on the landing light after dark if movement only if light is off
+  - id: LIG.019
+    alias: Landing on after dark 
+    trigger:
+      - entity_id: binary_sensor.landing_motion
+        platform: state
+        to: 'on'
+    condition:
+      - condition: state
+        entity_id: sun.sun
+        state: "below_horizon"
+      - condition: state
+        entity_id: light.landing_group
+        state: 'off'
+    action:
+      - service: light.turn_on
+        target:
+          entity_id: light.landing_group
+        data:
+          brightness: 25
+      - delay: 00:00:30
+      - service: light.turn_off
+        target:
+          entity_id: light.landing_group
+
+
+# ###################################
+#   # Functional Lights automation
+# ###################################
+
+# time for bed part 1
+  - id: LIG.026
+    alias: bed light on
+    trigger:
+      platform: state
+      entity_id: binary_sensor.landing_motion
+      to: 'on'
+    condition:
+      - condition: state
+        entity_id: input_boolean.nosstar
+        state: "on"
+    action:
+      - service: light.turn_on
+        entity_id: light.bed
+      - delay: 300 
+      - service: light.turn_off
+        entity_id: light.downstairs_group
+      - service: switch.turn_off
+        entity_id: switch.fire
+
+# time for bed part 2
+  - id: LIG.020
+    alias: Nos star
+    trigger:
+      platform: state
+      entity_id: binary_sensor.kitchen_door
+      to: 'off'
+    condition:
+      - condition: state
+        entity_id: input_boolean.nosstar
+        state: 'on'
+    action:
+      - service: light.turn_off
+        entity_id: 
+          - light.lounge_group
+      - service: media_player.volume_set
+        data:
+          entity_id: media_player.kitchen_sonos
+          volume_level: 0.5
+      - service: switch.turn_off
+        entity_id: switch.fire
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.kitchen_sonos
+          message: You have 60 seconds before lockdown
+          options:
+            gender: female
+          language: en-GB
+      - delay: 30
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.kitchen_sonos
+          message: You have 30 seconds before lockdown
+          options:
+            gender: female
+          language: en-GB
+      - delay: 30
+      - service: light.turn_off
+        entity_id: 
+          - light.hall
+          - light.lounge_group
+          - light.morning_room_ceiling
+          - light.dining_room_group
+      - service: alarm_control_panel.alarm_arm_home
+        entity_id: alarm_control_panel.home
+      - delay:
+          minutes: 1
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.master_bedroom_sonos
+          message: Alarm armed and all lights are off in the rest of the house, good night
+          options:
+            gender: female
+          language: en-GB
+      - service: input_boolean.turn_off
+        entity_id: input_boolean.nosstar
+      - service: input_boolean.turn_off
+        entity_id: input_boolean.morning_light
+
+# ###################################
+#   # Loft Lights 
+# ###################################
+#  Loft still on notify in living room  
+  - id: LIG.021
+    alias: loft still on
+    trigger:
+      platform: state
+      entity_id: light.loft
+      to: 'on'
+      for:
+        minutes: 20
+    action:
+      - service: notify.mobile_app_one_9
+        data:
+          title: Hello, The Loft light is still on
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.living_room_sonos
+          message: Hello, the loft light is still on
+          options:
+            gender: female
+          language: en-GB
+
+
+##############################  SCRIPTS ########################################
+
+script:
+
+#############################################
+# Bedtime sequence
+#############################################
+  nos_star:
+    sequence:
+      - service: light.turn_on
+        entity_id: light.bed
+        data:
+          brightness: 220
+      - service: light.turn_on
+        entity_id: group.landing
+      - service: input_boolean.turn_on
+        entity_id: input_boolean.nosstar
+
+############################################
+# Light Flash
+############################################
+
+  light_flash:
+    alias: Light flash on
+    sequence:
+      - service: homeassistant.turn_on
+        data:
+          entity_id: light.hall
+      - delay:
+      #### time for flash light on
+          seconds: 1
+      - service: homeassistant.turn_off
+        data:
+          entity_id: light.hall
+      - service: script.turn_on
+        data:
+          entity_id: script.light_loop
+# LOOP BACK TO START FLASH AGAIN         
+  light_loop:
+    alias: Light flash loop
+    sequence:
+      - delay:
+   #### time for flash light off
+          seconds: 1
+      - service: script.turn_on
+        data:
+          entity_id: script.light_flash
+# CANCEL FLASHING 
+  light_flash_cancel:
+    alias: Cancel Light Flash
+    sequence:
+      -  service: script.turn_off
+         data:
+           entity_id: script.light_flash
+      -  service: script.turn_off
+         data:
+           entity_id: script.light_loop
+      - service: light.turn_off
+        entity_id: light.hall
+
+           
+        
+      ##############################  SCENES ########################################
+scene:
+  - id: tv
+    name: tv
+    entities:
+      light.lounge_sidetable:
+        state: "on"
+        brightness: 30
+      light.lounge_window:
+        state: "on"
+        brightness: 30
+      switch.fire:
+        state: "on"
+
+  - id: loungefull
+    name: loungefull
+    entities:
+      light.lounge_sidetable:
+        state: "on"
+        brightness: 250
+      light.lounge_window:
+        state: "on"
+        brightness: 250
+      switch.fire:
+        state: "on"
+
+  - id: bedtime
+    name: bedtime
+    entities:
+      light.bedroom:
+        brightness: 100
+        state: "on"
+
+  - id: loungeoff
+    name: Loungeoff 
+    entities:
+      light.lounge_group:
+        state: "off"
+      switch.fire:
+        state: "off"
+
+  - id: morningOn
+    name: morningOn
+    entities:
+      light.morning_room:
+        state: "on"
+        brightness: 255
+
+  - id: morninglow
+    name: morninglow
+    entities:
+      light.morning_room:
+        state: "on"
+        brightness: 30
+
+  - id: landing
+    name: Landing
+    entities:
+      light.landing_group:
+        state: "on"
+        brightness: 20  
+      
+  - id: dinner
+    name: DinnerParty
+    entities:
+      light.dining_room_group:
+        state: "on"
+        brightness: 30
+
+##############################  INPUT BOOLEAN #################################
+input_boolean:
+  nosstar:
+    name: Night Mode
+    icon: mdi:human-greeting
+
+  lounge_full:
+    name: lounge light 
+    icon: mdi:lamp
+  
+  dining:
+    name: Dinner Party
+    icon: mdi:party-popper
+  
+  morning_light:
+    name: Morning Room Light
+    icon: mdi:lamp
+
+  lounge_on:
+    name: Lounge On
+    icon: mdi:lamp
+##############################  GROUPS ########################################
+group:
+
+  living_room:
+    entities:
+      - light.lounge_window
+      - light.lounge_sidetable
+      - light.lounge_ceiling
+
+  lounge:
+    entities:
+      - light.lounge_window
+      - light.lounge_sidetable
+
+  bedroom:
+    entities:
+      - light.bedroom_ceiling
+      - switch.bed_light
+
+  landing:
+    entities:
+      - light.landing
+
+  all_lights:
+    entities:
+      - light.landing
+      - light.hall_light
+      - light.garden_security
+      - light.lounge_ceiling
+      - light.lounge_sidetable
+      - light.lounge_window
+      - light.morning_room_ceiling
+      - light.office_desk
+      - light.bedroom_ceiling
+      - switch.bed_light
+      - light.dining_room_1
+      - light.dining_room_2
+      - light.dining_room_3
+
+  downstairs_lights:
+    entities:
+      - light.lounge_ceiling
+      - light.lounge_window
+      - light.lounge_sidetable
+      - light.morning_room
+      - light.garden_light
+      - light.dining_room
+
+  dining_room_lights:
+    entities:
+      - light.dining_room_1
+      - light.dining_room_2
+      - light.dining_room_3

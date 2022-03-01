@@ -1,0 +1,119 @@
+###############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   04/07/20
+#   @subject        :   Water Detection 
+#   @description    :   Water Detection for home assistant
+#   @version        :   1.3
+#   @Comment        :   Based on automations version 1.2
+###############################################################################
+
+#############################  GROUPS ########################################
+group:
+  water:
+    entities:
+      - binary_sensor.bathroom_water_leak # underneath bathroom sink
+      - binary_sensor.utility_water_leak # underneath utility sink
+      - binary_sensor.kitchen_water_leak # underneath kitchen sink 
+      - binary_sensor.utility_toilet_water_leak # behind toilet in utility
+
+##############################  AUTOMATION ####################################
+automation:
+  - id: WAT.001
+    alias: Water Leak Detection 
+    trigger:
+      - platform: state
+        entity_id: group.water
+        to: 'on'
+    mode: single
+    max_exceeded: silent
+    condition:
+      - condition: state
+        entity_id: input_boolean.alarm
+        state: 'off'
+    action:
+      - service: sonos.snapshot
+      - service: script.sonos_all
+        entity_id: media_player.living_room_sonos
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.living_room_sonos
+          message: I have detected a water leak, please investigate as soon as possible
+          options:
+            gender: female
+          language: en-GB
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+      - service: persistent_notification.create
+        data:
+          message: "A water leak has been detected by {{ trigger.friendly_name }} "
+          title: "Urgent - Attention"
+    # Message our email addresses  and announce #########
+      - service: notify.alarm_email
+        data:
+            title: 'Water leak detected'
+            message: 'A water leak has been detected'
+      - delay: 120 # seconds
+  
+  - id: WAT.002
+    alias: Water Leak Detection household away 
+    trigger:
+      - platform: state
+        entity_id: group.water
+        to: 'on'
+    mode: single
+    max_exceeded: silent
+    condition:
+      - condition: state
+        entity_id: group.family
+        state: 'not_home'
+      - condition: state
+        entity_id: input_boolean.alarm
+        state: 'off'
+    action:
+      - service: sonos.snapshot
+      - service: script.sonos_all
+        entity_id: media_player.living_room_sonos
+      - service: notify.mobile_app_one_9
+        data:
+          title: Rick, a leak sensor has detected water, please investigate
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - service: notify.mobile_app_one_8
+        data:
+          title: Debs, a leak sensor has detected water, please investigate
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+      - service: persistent_notification.create
+        data:
+          message: "A water leak has been detected by {{ trigger.friendly_name }} "
+          title: "Urgent - Attention"
+    # Message our email addresses  and announce #########
+      - service: notify.alarm_email
+        data:
+            title: 'Water leak detected'
+            message: 'A water leak has been detected'
+      - delay: 120 # seconds
+
+  ##############################  INPUT BOOLEAN ################################
+input_boolean:
+  alarm:
+    name: Silence water sensor
+    icon: mdi:alarm-light-off-outline
+  ##############################  SCRIPTS ########################################
+
+# none
+
+##############################  SCENES ########################################
+
+# none
+
+
+#############################  END ############################################

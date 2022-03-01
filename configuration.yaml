@@ -1,0 +1,231 @@
+###############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   14/06/20
+#   @subject        :   Configuration
+#   @description    :   Configuration for home assistant
+###############################################################################
+# Change to theme 
+#
+frontend:
+    themes: !include_dir_merge_named themes
+
+# Define zones
+zone:
+  - name: Home
+    latitude: !secret zone_lat
+    longitude: !secret zone_long
+    radius: 50
+    icon: mdi:account-multiple
+
+# Integration for sunrise and sunset
+sun:
+
+# system health report 
+system_health:
+
+# UI HA resources
+lovelace:
+  # mode: yaml
+  resources:
+    - url: /hacsfiles/compass-card/compass-card.js
+      type: module
+    - url: /hacsfiles/button-card/button-card.js
+      type: module
+    - url: /hacsfiles/battery-state-card/battery-state-card.js
+      type: module
+    - url: /hacsfiles/simple-thermostat/simple-thermostat.js
+      type: module
+    - url: /hacsfiles/lovelace-card-mod/card-mod.js
+      type: module 
+    - url: /hacsfiles/bar-card/bar-card.js
+      type: module
+    - url: /hacsfiles/lovelace-battery-entity-row/battery-entity-row.js
+      type: module
+    - url: /hacsfiles/garbage-collection-card/garbage-collection-card.js
+      type: module
+
+
+default_config:
+
+######################################################
+# Alexa Integration
+######################################################
+cloud:
+  alexa:
+    filter:
+      exclude_domains:
+        - binary_sensor
+        - input_boolean
+        - sensor
+        - alarm_control_panel
+        - alert
+        - automation
+        - cover
+        - fan
+        - lock
+      # include_entities:
+        # - alarm_control_panel.entity_id
+      include_domains:
+        # - alarm_control_panel
+        - switch
+        - light
+        - media_player
+        - scene
+        - group
+        - script
+      exclude_entities:
+        - water_heater.hot_water
+        - light.reading_light
+        - climate.heating
+        
+######################################################
+# Spotify Integration
+######################################################
+spotify:
+  client_id: !secret spotify_user
+  client_secret: !secret spotify_password
+
+spotcast:
+  sp_dc: !secret sp_dc
+  sp_key: !secret sp_key
+
+#####################################################
+
+
+#####################################################
+# Logging Status
+# Possible log severity levels, listed in order from 
+# most severe to least severe, are:
+# critical, fatal, error, warning, warn, info, debug, 
+# notset
+#
+######################################################
+logger:
+  default: error
+  logs:
+    homeassistant.core: error
+    homeassistant.python_script: warning
+    # custom_components.my_integration:  # replace with integration name
+    # homeassistant.loader:
+    # homeassistant.components.lovelace:
+    # homeassistant.components.systemmonitor.sensor:
+    # snitun.client.client_peer:
+    # homeassistant.components.webhook:
+    # homeassistant.components.ring:
+    # homeassistant.components.life360.device_tracker:
+    # homeassistant.components.binary_sensor: 
+    # homeassistant.components.sensor:
+    # homeassistant.components.switch:
+    # homeassistant.components.climate: 
+    # homeassistant.components.water_heater:
+    # custom_components.spotcast: 
+    # homeassistant.components.zha: error
+    # bellows.zigbee.application: error
+    # bellows.ezsp: error
+    # zigpy: debug
+    # zigpy_deconz.zigbee.application: debug
+    # zigpy_deconz.api: debug
+    # zigpy_xbee.zigbee.application: debug
+    # zigpy_xbee.api: debug
+    # zigpy_zigate: debug
+    # zigpy_znp: debug
+    # zhaquirks: debug
+    # zigpy.zcl:
+    # zigpy_deconz.api
+    # homeassistant.components.bmw_connected_drive: debug
+    # custom_components.bmw_connected_drive: debug
+
+#   @subject        :   Sensors 
+#   @description    :   Sensors for home assistant-configuration
+
+#####################################################
+# Influx Database 5/21
+# 
+#####################################################
+influxdb:
+  host: a0d7b954-influxdb
+  port: 8086
+  database: homeassistant
+  username: !secret influx_user
+  password: !secret influx_pwd
+  max_retries: 3
+  default_measurement: state
+#
+######################################################
+# MariaDB Database 6/21
+######################################################
+recorder:
+  # purge events and states over 2 weeks old
+  purge_keep_days: 14
+  db_url: !secret mariadb_url
+  include:
+    domains:
+      - alarm_control_panel
+      - automation
+      - binary_sensor
+      - climate
+      - sensor
+      - switch
+      - media_player
+      - light
+      - proximity
+  exclude:
+    entity_globs:
+      - binary_sensor.one_8_*
+      - binary_sensor.one_9_*
+      - sensor.portsmouth_*
+      - sensor.ricks_ipad_*
+      - sensor_tide_*
+      - device_tracker.*
+    entities:
+      - calendar.garbage_collection
+      - binary_sensor.tab_m_is_charging
+      - sensor.openweathermap_wind_bearing
+      - sensor.openweathermap_wind_speed
+      - sensor.recycling_collection
+      - sun.sun
+  
+
+######################################################
+# Alarm  Control Panel
+######################################################
+alarm_control_panel:
+  - platform: manual
+    name: home
+    code: !secret alarm_code
+    code_arm_required: false
+    ################# Arm again after triggering
+    disarm_after_trigger: false
+    delay_time: 0
+    arming_time: 0
+    ################# 
+    disarmed:
+      trigger_time: 0
+      delay_time: 0
+  ################## Arm while peeps are at home manually
+    armed_home:
+      arming_time: 10
+      delay_time: 60  
+      trigger_time: 120
+    ################# Arm while peeps are away from home 
+    armed_away:
+      arming_time: 30
+      delay_time: 60
+      trigger_time: 300
+    ################# Arm while peeps and suki are away from home !env_var 
+    armed_vacation:
+      arming_time: 30
+      delay_time: 60
+      trigger_time: 300    
+
+#
+######################################################
+# Zigbee Home Assistant (ZHA) 11/21
+######################################################
+# none
+
+sensor: !include sensors.yaml
+
+homeassistant:
+  
+  packages: !include_dir_named packages

@@ -1,0 +1,111 @@
+###############################################################################
+#   @author         :   Richard Jenkins
+#   @date           :   04/07/20
+#   @subject        :   Comms and System Monitoring
+#   @description    :   Comms and System Monitoring for home assistant
+#   @version        :   2.3
+#   @Comment        :   Based on automations version 1.2
+###############################################################################
+
+
+automation:
+
+### Home Assistant Update available - no longer required 
+  - id: SYS.001
+    alias: ha update required
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.updater
+        to: 'on'
+    mode: single
+    action:
+      - service: notify.notify
+        data:
+          message: "Home Assistant Update Available "
+          title: "HA Update"
+
+## Notification of power failure
+  - id: SYS.002
+    alias: power supply failure 
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.ups_input_voltage
+        below: 30
+    action:
+      - service: notify.mobile_app_one_9
+        data:
+          title: Rick, The Server Power Supply has failed, UPS is powering servers
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+
+### Shutdown Host if UPS battery expended
+  - id: SYS.003
+    alias: shutdown host when battery low 
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.ups_battery_runtime
+        below: 300
+    action:
+      - service: notify.mobile_app_one_9
+        data:
+          title: Warning, the UPS battery has been expended, shutting down the Home Assistant Server in 30 seconds
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - delay: 30
+      - service: hassio.host_shutdown
+
+##############################  GROUPS #######################################
+
+# Group of entities ignored by unavailability sensor in sensors.yaml
+group:
+  ignored_entities:
+    entities:
+      - binary_sensor.updater
+      - sensor.one_8_next_alarm
+      - sensor.one_9_next_alarm
+      - scene.normal
+      - sensor.garage_last_activity
+      - sensor.garage_last_motion
+      - automation.both_out_arm_automatically
+      - automation.nest_trigger
+      - automation.return_disarm_automatically
+      - device_tracker.ricks_ipad_2
+      - person.home
+      - person.home2
+      - sensor.ipv4_address_enp3s0
+      - sensor.kitchen_charger_type
+      - sensor.one_8_charger_type
+      - sensor.one_9_charger_type
+      - sensor.openweathermap_forecast_temperature_low
+
+##############################  INPUT BOOLEAN ################################
+
+input_boolean:
+  uptime_status:
+    name: Uptime Status Tracker
+    initial: off
+    icon: mdi:clock-digital
+
+##############################  SCRIPTS ########################################
+script:
+  # Uptime
+  ha_uptime:
+    sequence:
+      - condition: numeric_state
+        entity_id: sensor.time_online
+        above: 2
+      - service: input_boolean.turn_on
+        entity_id: input_boolean.uptime_status
+##############################  SCENES ########################################
+
+# none
+
+
+#############################  END ############################################
+

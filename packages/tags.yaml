@@ -1,0 +1,101 @@
+###############################################################################
+#   @author         :   Richard Jenkins
+#   @date           :   04/07/21
+#   @subject        :   Tags Management 
+#   @description    :   Tag Management and Security 
+#   @version        :   1.2
+#   @Comment        :   updates 
+###############################################################################
+
+
+automation:
+  - id: TAG.001
+    alias: "Handle Tag Scan"
+    mode: single
+    # Hide warnings when triggered while in delay.
+    max_exceeded: silent
+    variables:
+      # Map scanner device ID to terminal entity_id
+      terminal:
+        tagcode: # Kitchen Tag Scanner
+        tagcode: # Hall Tag Scanner
+      # Map tag ID to user
+      tags:
+        tag.code:
+          user: person.5
+        tag.code::
+          user: person.4
+        tag.code:
+          user: person.3
+        tag.code:
+          user: person.2
+        tag.code:
+          user: person.1
+        tag.code:
+          user: person.6
+    trigger:
+      platform: event
+      event_type: tag_scanned
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.home
+        state: 
+          - 'pending'
+          - 'triggered'
+          - 'armed_away'
+          - 'armed_vacation'
+# Currently all tags are valid at all times of the day and all week.
+# Future implementation will provide for different tags having different authorised times and days
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:59"
+        weekday:
+          - sun
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+          - sat
+      - "{{ trigger.event.data.tag_id in tags }}"
+      - "{{ trigger.event.data.device_id in terminal }}"
+    action:
+#      only for testing use
+      # - service: light.turn_on 
+      #   entity_id: light.hall_light
+      - service: alarm_control_panel.alarm_disarm
+        entity_id: alarm_control_panel.home
+        data:
+          code: !secret alarm_code
+      - service: sonos.join
+        data:
+          master: media_player.living_room_sonos
+        entity_id:
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+      - service: sonos.snapshot
+        entity_id: media_player.living_room_sonos
+      - service: media_player.volume_set
+        entity_id:
+          - media_player.living_room_sonos
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+        data:
+          volume_level: 0.50
+      - service: tts.cloud_say
+        entity_id: media_player.living_room_sonos
+        data:
+          message: Thank you, your tag was recognised and the alarm has been disarmed
+          options:
+            gender: female
+          language: en-GB
+      - delay: 3
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+      - service: sonos.unjoin
+        data:
+          entity_id:
+          - media_player.living_room_sonos
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+      - delay: 5 # timeout before we allow processing next scan

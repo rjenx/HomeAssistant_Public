@@ -1,0 +1,321 @@
+###############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   04/07/20
+#   @subject        :   Environmental Monitoring
+#   @description    :   Environment, Gas and Smoke Detection for home assistant
+#   @version        :   1.1
+#   @Comment        :   Based on automations version 1.2
+###############################################################################
+
+#############################  GROUPS ########################################
+
+
+##############################  AUTOMATION ####################################
+automation:
+
+###### Utility Carbon Monoxide CO Detector ################################
+- id: SAG.001
+  alias: CO leak Utility
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.boiler_co
+      to: "on"
+  action:
+  # message the webpage ####################
+    - service: persistent_notification.create
+      data:
+        message: "Carbon Monoxide (CO) has been detected in the Utility"
+        title: "Urgent - Carbon Monoxide Detected"
+  # Message our email addresses  and announce #########
+    - service: notify.alarm_email
+      data:
+          title: 'CO leak detected'
+          message: 'Carbon Monoxide has been detected near the boiler'
+    - service: tts.cloud_say
+      data:
+        entity_id: media_player.master_bedroom_sonos
+        message: Warning, carbon monoxide has been detected near the boiler, please investigate CO leak
+        options:
+          gender: male
+        language: en-GB
+    - service: notify.mobile_app_one_9
+      data_template:
+        title: "Rick, Carbon Monoxide has been detected near the boiler {{ trigger.to_state.attributes.friendly_name }} has been triggered"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+    - delay: 2
+    - service: notify.mobile_app_one_8
+      data_template:
+        title: "Debs, Carbon Monoxide has been detected near the boiler {{ trigger.to_state.attributes.friendly_name }} has been triggered"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+
+###### Landing Smoke Detector ################################
+# - id: SAG.002
+# No longer required, replaced with SAG005 
+
+###### Fridge Temperature Sensor ################################
+
+# - id: SAG.003
+# no longer installed removed automation - reuse ID
+
+###### Humidity Sensor Warning ################################
+
+- id: SAG.004
+  alias: humidity
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.utility_multi_humidity
+      above: 90
+      for: "00:30:00"
+  action:
+    - service: notify.mobile_app_one_9
+      data:
+        title: Humidity is very high in the Utility, suggest turn on fan
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+    - delay: 2
+    - service: notify.mobile_app_one_8
+      data:
+        title: Humidity is very high in the Utility, suggest turn on fan
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+
+
+###### Smoke Detectors triggered at night ################################
+- id: SAG.005
+  alias: Smoke Sensor trigger at night
+  trigger:
+    - platform: state
+      entity_id: 
+        - binary_sensor.hall_smoke
+        - binary_sensor.kitchen_smoke
+        - binary_sensor.landing_smoke
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: group.family
+      state: 'home' 
+    - condition: sun
+      after: sunset
+      before: sunrise
+  action:
+    - service: light.turn_on
+      entity_id: group.all_lights
+  # message the phones ####################
+    - service: notify.mobile_app_one_9
+      data_template:
+        title: "Rick, the {{ trigger.to_state.attributes.friendly_name }} has been triggered"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+    - delay: 2
+    - service: notify.mobile_app_one_8
+      data_template:
+        title: "Debs, the {{ trigger.to_state.attributes.friendly_name }} has been triggered"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+
+- id: SAG.006
+  alias: Smoke Sensor trigger while away
+  trigger:
+    - platform: state
+      entity_id: 
+        - binary_sensor.hall_smoke
+        - binary_sensor.kitchen_smoke
+        - binary_sensor.landing_smoke
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: group.family
+      state: 'not_home' 
+  action:
+  # message the webpage ####################
+    - service: persistent_notification.create
+      data:
+        message: "Smoked detected at Home"
+        title: "Urgent - Smoke Detected"
+  # Message our email addresses  and announce #########
+    - service: notify.alarm_email
+      data:
+          title: 'Smoke detected'
+          message: 'The Smoke Detector has triggered'
+    - service: notify.mobile_app_one_9
+      data_template:
+        title: "Rick, the {{ trigger.to_state.attributes.friendly_name }} has been triggered"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+    - service: notify.mobile_app_one_8
+      data_template:
+        title: "Debs, the {{ trigger.to_state.attributes.friendly_name }} has been triggered"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+
+### Excessive Heat Detected by one of the Temp Sensors ###########
+- id: SAG.007
+  alias: Heat Alarm 
+  trigger:
+    - platform: numeric_state
+      entity_id: 
+        - sensor.bathroom_multi_temperature
+        - sensor.bedroom_multi_temperature
+        - sensor.landing_motion_temperature
+        - sensor.lounge_multi_temperature
+        - sensor.lounge_window_left_temperature
+        # - sensor.syn01_temperature
+        - sensor.thermostat_3_current_temperature
+        - sensor.utility_multi_temperature
+        - sensor.utility_toilet_temperature
+      above: 40
+  action:
+  # message the webpage ####################
+    - service: persistent_notification.create
+      data:
+        message: "Heat detected at Home"
+        title: "Urgent - Heat Detected"
+  # Message our email addresses  and announce #########
+    - service: notify.alarm_email
+      data:
+          title: 'Heat detected'
+          message: 'Heat Detector has triggered'
+    - service: notify.mobile_app_one_9
+      data_template:
+        title: "Rick, High Temperature has been detected by {{ trigger.to_state.attributes.friendly_name }} please investigate"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+    - service: notify.mobile_app_one_8
+      data_template:
+        title: "Debs, High Temperature has been detected by {{ trigger.to_state.attributes.friendly_name }} please investigate"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max  
+    - service: sonos.join
+      data:
+        master: media_player.living_room_sonos
+      entity_id:
+        - media_player.kitchen_sonos
+        - media_player.dining_room_sonos
+        - media_player.master_bedroom_sonos
+    - service: sonos.snapshot
+      entity_id: media_player.living_room_sonos
+    - service: media_player.volume_set
+      entity_id:
+        - media_player.living_room_sonos
+        - media_player.kitchen_sonos
+        - media_player.dining_room_sonos
+        - media_player.master_bedroom_sonos
+      data:
+        volume_level: 0.60
+    - service: tts.cloud_say
+      entity_id: media_player.living_room_sonos
+      data:
+        message: Heat above 40c has been detected please investigate
+        options:
+          gender: female
+        language: en-GB
+    - delay: 5
+    - service: tts.cloud_say
+      entity_id: media_player.living_room_sonos
+      data:
+        message: I repeat, Heat above 50c has been detected please investigate
+        options:
+          gender: female
+        language: en-GB
+    - delay: 3
+    - service: sonos.restore
+      entity_id: media_player.living_room_sonos
+    - service: sonos.unjoin
+      data:
+        entity_id:
+        - media_player.living_room_sonos
+        - media_player.kitchen_sonos
+        - media_player.dining_room_sonos
+        - media_player.master_bedroom_sonos
+    # Sirens not implemented at this stage as these dont differentiate between fire and security
+    # - delay: 00:00:10
+    # - service: switch.turn_on
+    #   entity_id: switch.morning_siren
+    # - service: switch.turn_on
+    #   entity_id: switch.garden_siren
+    # - service: switch.turn_on
+    #   entity_id: switch.cars_siren
+
+#### Rate of Change too high for temperature - possible fire
+- id: SAG.008
+  alias: ROC Alarm 
+  trigger:
+    - platform: numeric_state
+      entity_id: 
+        - sensor.lounge_roc_temperature
+        - sensor.bedroom_roc_temperature
+        - sensor.utility_roc_temperature
+        - sensor.bathroom_roc_temperature
+      above: 10 # Normal heating should not exceed 5 - 6c / hr
+      for:
+        minutes: 2
+  action:
+  # set persistent switch ####################
+    - service: input_boolean.turn_on
+      entity_id: input_boolean.roc
+  # Message our email addresses  and announce #########
+    - service: notify.alarm_email
+      data:
+          title: 'Rapid temperature increase'
+          message: 'Temperature is increasing too fast'
+    - service: notify.mobile_app_one_9
+      data_template:
+        title: "Rick, Rapid rise in temperature detected in {{ trigger.to_state.attributes.friendly_name }} please investigate"
+        message: TTS
+        data:
+          ttl: 0
+          priority: high
+          channel: alarm_stream_max
+
+##############################  INPUT BOOLEAN ################################
+
+input_boolean:
+
+  roc:
+    name: rate of change 
+    icon: mdi:fire
+
+
+
+##############################  SCRIPTS ########################################
+
+# none 
+
+##############################  SCENES ########################################
+
+# none
+
+
+#############################  END ############################################

@@ -1,0 +1,16 @@
+{
+  "domain": "hive",
+  "name": "Hive",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/hive",
+  "issue_tracker": "https://github.com/Pyhass/Hive-Custom-Component/issues",
+  "version": "2021.5.0",
+  "requirements": [
+    "pyhiveapi==0.4.1"
+  ],
+  "codeowners": [
+    "@Rendili",
+    "@KJonline"
+  ],
+  "iot_class": "cloud_polling"
+}

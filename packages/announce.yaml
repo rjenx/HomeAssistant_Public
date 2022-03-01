@@ -1,0 +1,147 @@
+# ###############################################################################
+# #   @author         :   Richard Jenkins
+# #   @date           :   17/07/20
+# #   @subject        :   Announcements
+# #   @description    :   Announcements and Calls
+# #   @version        :   1
+# #   @Comment        :
+# ###############################################################################
+# # homeassistant:
+# #   customize:
+
+# ##############################  AUTOMATION ####################################
+
+# # automation for testing only
+# # automation:
+# #   - alias: 'test'
+# #       trigger:
+# #         - platform: state
+# #           entity_id: input_boolean.mytest
+# #       action:
+# #         - service: script.sonos_say
+# #           data:
+# #             sonos_entity: media_player.mediaplayer_sonos
+# #             volume: 0.5
+# #             message: 'This is a test of the Sonos announcement script!'
+# #             delay: '00:00:05'
+
+# ##############################  INPUT BOOLEAN ################################
+
+# #input_boolean:
+
+# #    test input boolean for automation.test
+
+# # mytest:
+# #     name: mytest
+
+# ##############################  SCRIPTS ########################################
+script:
+#   # Sonos Announcements
+  # sonos_say:
+  #   alias: "Sonos TTS"
+  #   sequence:
+      # - service: sonos.snapshot
+      #   entity_id: "{{ sonos_entity }}"
+      # - service: sonos.unjoin
+      #   data_template:
+      #   entity_id: "{{ sonos_entity }}"
+      # - service: media_player.volume_set
+      #   data_template:
+      #   entity_id: "{{ sonos_entity }}"
+      #   volume_level: "{{ volume }}"
+      # - service: tts.google_say
+      #   data_template:
+      #     entity_id: "{{ sonos_entity }}"
+      #     message: "{{ message }}"
+      # - service: tts.cloud_say
+      #   data_template:
+      #     entity_id: "{{ sonos_entity }}"
+      #     message: "{{ message }}"
+      #     language: en-GB
+      #     options:
+      #       gender: female
+      # - delay: "{{ delay }}"
+      # - delay: '00:00:03'
+      # - service: sonos.restore
+      #   data_template:
+      #     entity_id: "{{ sonos_entity }}"
+
+  sonos_all:
+    alias: "Sonos All"
+    sequence:
+      - service: sonos.join
+        data:
+          master: media_player.living_room_sonos
+          entity_id:
+            - media_player.dining_room_sonos
+            - media_player.kitchen_sonos
+            - media_player.master_bedroom_sonos
+            - media_player.garage
+  sonos_leave:
+    alias: "Sonos leave"
+    sequence:
+      - service: sonos.unjoin
+        data:
+          master: media_player.living_room_sonos
+          entity_id:
+            - media_player.dining_room_sonos
+            - media_player.kitchen_sonos
+            - media_player.master_bedroom_sonos
+            - media_player.garage
+
+
+#   sonos_test:
+#     alias: "sonos test"
+#     sequence:
+#       - service: tts.cloud_say
+#         data:
+#           entity_id: group.sonos # media_player.living_room_sonos
+#           message: the door has been open for 10 minutes
+#           options:
+#             gender: female
+#           language: en-GB
+
+  # Sonos Announcements
+  # sonos_alt:
+  #   alias: "Sonos NC TTS"
+  #   sequence:
+  #     - service: sonos.snapshot
+  #       data_template:
+  #       entity_id: all
+  #     - service: sonos.join
+  #       data_template:
+  #         master: media_player.living_room_sonos
+  #         entity_id: all
+  #     - service: tts.cloud_say
+  #       data_template:
+  #         entity_id: media_player.living_room_sonos
+  #         message: "{{ message }}"
+  #         options:
+  #           gender: female
+  #         language: en-GB
+  #     - delay: "00:00:10"
+  #     - service: sonos.restore
+  #       data_template:
+  #       entity_id: all
+# ##############################  SCENES ########################################
+# # scenes:
+# # none
+
+# #############################  GROUPS ########################################
+group:
+  # Alexa entities
+  mediaplayer:
+    entities:
+      - media_player.sonos_beam
+      - media_player.master_bedroom
+      - media_player.kitchen_show
+      - media_player.dining_room_echo
+      # - media_player.camerons_echo
+# Sonos entites
+# sonos:
+#   entities:
+#     - media_player.dining_room
+#     - media_player.kitchen
+#     - media_player.living_room
+
+# #############################  END ############################################

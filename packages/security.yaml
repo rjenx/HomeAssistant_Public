@@ -1,0 +1,670 @@
+###############################################################################
+#   @author         :   jenx (copyright 2021)
+#   @date           :   04/07/20
+#   @subject        :   Security
+#   @description    :   Security for home assistant
+#   @version        :   2.1
+#   @Comment        :   package created from v1.2
+###############################################################################
+# SUMMARY OF SERVICE
+#
+# Alarm has three modes: 
+# 1. Armed Home - Set via terminal, used when we are at home, only boundary is monitored (doors and windows) 
+# 2. Armed Away - Can be set on terminal or automatically when we leave, only boundary is monitored as dog maybe at home 
+# 3. Armed Vacation - Set via terminal, used when all three of us are away, boundary and motion detection monitored. 
+# Before the alarm arms a check is made to ensure all doors and windows are closed. For those away modes (2 and 3) there is a delay
+# of 30 sec before arming completes. Time to vacate the building. For home (1) the alarm arms in 10 sec, enough time to cancel if 
+# required.
+##############################  GROUPS ########################################
+group:
+  opening:
+    entities:
+      - binary_sensor.frontdoor
+      - binary_sensor.kitchen_door
+      - binary_sensor.dining_patiodoor
+      - binary_sensor.garage_door
+      - binary_sensor.hall_window
+      - binary_sensor.morning_window
+      - binary_sensor.lounge_window_left
+      - binary_sensor.dining_window
+      - binary_sensor.lounge_window_right
+      - binary_sensor.garage_upandover
+
+
+
+  motion_detectors:
+    entities:
+      - binary_sensor.landing_motion
+      - binary_sensor.lounge_motion
+      - binary_sensor.morning_motion 
+      - binary_sensor.dining_motion
+      - binary_sensor.garage_motion_2
+
+  camera_motion:
+    entities:
+      - binary_sensor.front_door_motion
+      - binary_sensor.garden_motion
+
+  family:
+    name: Rick, Cameron and Debs
+    entities:
+      - person.rick
+      - person.deb
+      - person.cameron
+
+
+
+########################## END GROUPS ########################################
+
+########################## INPUT BOOLEAN ########################################
+input_boolean:
+
+  guest:
+    name: Guest Mode
+    icon: mdi:human-greeting
+
+########################## SCRIPTS ########################################
+script:
+  # script.security_check - confirm all doors are shut and set alarm to on
+  security_check:
+    sequence:
+      choose:
+        - conditions:
+            - condition: state
+              entity_id: !include ../group_openings.yaml
+              state: "off"
+            - condition: state
+              entity_id: input_boolean.guest
+              state: "off"
+          sequence:
+            - service: tts.cloud_say
+              data:
+                entity_id: media_player.living_room_sonos
+                message: Attention, the alarm will arm in 60 seconds
+                options:
+                  gender: female
+                language: en-GB
+        - conditions:
+            - condition: state
+              entity_id: group.opening
+              state: "on"
+          sequence:
+            - service: notify.mobile_app_one_9
+              data_template:
+                title: "Rick, the security system could not arm, {{ trigger.to_state.attributes.friendly_name }} is open please resolve before trying again."
+                message: TTS
+                data:
+                  ttl: 0
+                  priority: high
+                  channel: alarm_stream_max
+            - service: notify.mobile_app_one_8
+              data:
+                title: "Deb, the security system could not arm, {{ trigger.to_state.attributes.friendly_name }} is open please resolve before trying again."
+                message: TTS
+                data:
+                  ttl: 0
+                  priority: high
+                  channel: alarm_stream_max
+            - service: alarm_control_panel.alarm_disarm
+              entity_id: alarm_control_panel.home
+              data:
+                code: !secret alarm_code
+        - conditions:
+            - condition: state
+              entity_id: input_boolean.guest
+              state: "on"
+          sequence:
+            - service: notify.mobile_app_one_9
+              data:
+                title: Attention, guest mode is on, the security system could not arm
+                message: TTS
+                data:
+                  ttl: 0
+                  priority: high
+                  channel: alarm_stream_max
+            - service: notify.mobile_app_one_8
+              data:
+                title: Attention, guest mode is on, the security system could not arm
+                message: TTS
+                data:
+                  ttl: 0
+                  priority: high
+                  channel: alarm_stream_max
+            - service: alarm_control_panel.alarm_disarm
+              entity_id: alarm_control_panel.home
+              data:
+                code: !secret alarm_code
+
+
+automation:
+
+########### Security automation ALARM SET UP ###################################
+################################################################################
+
+### Arm if both of us are out
+  - id: SEC.001
+    alias: Both out arm automatically
+    trigger:
+      - platform: state
+        entity_id: group.family
+        to: 'not_home'
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.home
+        state: 'disarmed'
+      - condition: state
+        entity_id: input_boolean.guest
+        state: 'off'
+    action:
+      - service: script.security_check
+      - service: alarm_control_panel.alarm_arm_away
+        entity_id: alarm_control_panel.home
+      - service: notify.mobile_app_one_9
+        data:
+          title: Rick, The alarm has armed automatically
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - service: notify.mobile_app_one_8
+        data:
+          title: Debs, The alarm has armed automatically
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - service: light.turn_off
+        entity_id: light.all_group
+
+  # Initiate security check if alarm is arming
+  - id: SEC.003
+    alias: Alarm Arming Check
+    trigger: 
+      - platform: state
+        entity_id: alarm_control_panel.home
+        to: 'arming'
+    action:
+      - service: script.security_check
+
+#### When alarm arms, check all lights are off
+  - id: SEC.014
+    alias: Check all lights and are off 
+    trigger: 
+      - platform: state
+        entity_id: alarm_control_panel.home
+        from: "disarmed"
+        to: 
+          - "armed_away"
+          - "armed_vacation"
+    action: 
+      - delay: "00:15:00"
+      - service: light.turn_off
+        entity_id: light.all_group
+      - service: switch.turn_off
+        entity_id: 
+          - switch.fire
+          - switch.sky
+
+    
+        
+  # ########## Security Announcements ##########################################
+  # ############################################################################
+
+  # Alarm in pending mode, announce to reset alarm
+  - id: SEC.008
+    alias: Reminder alarm armed all doors 
+    trigger:
+      - platform: state
+        entity_id: alarm_control_panel.home
+        to: 'pending'
+    action:
+      - choose:
+          - conditions: 
+              - condition: state
+                entity_id: binary_sensor.kitchen_door
+                state: "on" 
+            sequence:
+              # - delay: 2 # removed delay prior to snapshot. 
+              - service: sonos.snapshot
+                entity_id: media_player.kitchen_sonos
+              - service: media_player.volume_set
+                data:
+                  entity_id: media_player.kitchen_sonos
+                  volume_level: 0.7
+              - delay: 1 # Added delay prior to announcement of 1 sec
+              - service: tts.cloud_say
+                data:
+                  entity_id: media_player.kitchen_sonos
+                  message: Welcome home, please enter the code to disable the alarm at the kitchen terminal
+                  options:
+                    gender: female
+                  language: en-GB
+              - delay: 5 # delay to allow for completion of announcement before restoring
+              - service: sonos.restore
+                entity_id: media_player.kitchen_sonos
+          - conditions: 
+              - condition: state
+                entity_id: binary_sensor.frontdoor
+                state: "on" 
+            sequence:
+              - service: script.turn_on
+                entity_id: script.light_flash
+              - service: light.turn_on
+                entity_id: light.hall_alarm
+                data: 
+                  brightness: 255
+                  color_name: red
+              - service: sonos.snapshot
+                entity_id: media_player.living_room_sonos
+              - delay: 5
+              - service: media_player.volume_set
+                data:
+                  entity_id: media_player.living_room_sonos
+                  volume_level: 0.7
+              - service: tts.cloud_say
+                data:
+                    entity_id: media_player.living_room_sonos
+                    message: Welcome home, please enter the code to disable the alarm at the hall terminal
+                    options:
+                      gender: female
+                    language: en-GB
+              - delay: 5    
+              - service: sonos.restore
+                entity_id: media_player.living_room_sonos
+          - conditions: 
+              - condition: state
+                entity_id: binary_sensor.patio_door
+                state: "on" 
+            sequence:
+              - delay: 5
+              - service: sonos.snapshot
+                entity_id: media_player.dining_room_sonos
+              - service: media_player.volume_set
+                data:
+                  entity_id: media_player.dining_room_sonos
+                  volume_level: 0.7
+              - service: tts.cloud_say
+                data:
+                    entity_id: media_player.dining_room_sonos
+                    message: Welcome home, please enter the code to disable the alarm at the hall terminal
+                    options:
+                      gender: female
+                    language: en-GB
+              - delay: 5    
+              - service: sonos.restore
+                entity_id: media_player.dining_room_sonos
+
+
+  # ########## Security automation ALARM TRIGGERED ################################
+  # ############################################################################
+
+  # trigger alarm if external doors are open  ######
+  - id: SEC.004
+    alias: Trigger Alarm open door or window
+    trigger:
+      - platform: state
+        entity_id: !include ../group_openings.yaml
+        to: "on"
+    action:
+      - choose:
+          - conditions: # Both Away
+              - condition: state
+                entity_id: alarm_control_panel.home
+                state: 
+                  - armed_home
+                  - armed_away
+                  - armed_vacation
+              - condition: state
+                entity_id: group.family
+                state: "not_home"
+            sequence:
+              - service: alarm_control_panel.alarm_trigger
+                entity_id: alarm_control_panel.home
+              - service: notify.notify
+                data_template:
+                  message: "{{ trigger.to_state.attributes.friendly_name }} has been opened"
+                  title: "Alarm"
+              - service: notify.mobile_app_one_9
+                data_template:
+                  title: "Rick, the alarm has been tripped, {{ trigger.to_state.attributes.friendly_name }} has been opened. please investigate!"
+                  message: TTS
+                  data:
+                    ttl: 0
+                    priority: high
+                    channel: alarm_stream_max
+              - service: notify.mobile_app_one_8
+                data_template:
+                  title: "Debs, the alarm has been tripped, {{ trigger.to_state.attributes.friendly_name }} has been opened. please investigate!"
+                  message: TTS
+                  data:
+                    ttl: 0
+                    priority: high
+                    channel: alarm_stream_max
+          - conditions: # Arrived home
+              - condition: state
+                entity_id: alarm_control_panel.home
+                state: 
+                  - armed_home
+                  - armed_away
+                  - armed_vacation
+              - condition: state
+                entity_id: group.family
+                state: "home"
+            sequence:
+              - service: alarm_control_panel.alarm_trigger
+                entity_id: alarm_control_panel.home
+              - service: light.turn_on
+                entity_id: light.hall_alarm
+                data: 
+                  brightness: 255
+                  color_name: yellow
+              - service: notify.notify
+                data_template:
+                  message: "{{ trigger.to_state.attributes.friendly_name }} has been opened"
+                  title: "Alarm"
+
+  # trigger alarm if motion detected  ######
+  - id: SEC.009
+    alias: Trigger Alarm motion detected
+    trigger:
+      - platform: state
+        entity_id: !include ../group_motion_detectors.yaml
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.home
+        state: 
+          - 'armed_vacation'
+    action:
+      - service: alarm_control_panel.alarm_trigger
+        entity_id: alarm_control_panel.home
+      - service: light.turn_on
+        entity_id: light.hall_alarm
+        data: 
+          brightness: 255
+          color_name: yellow
+      - service: notify.mobile_app_one_9
+        data_template:
+          title: "Rick, motion has been detected by {{ trigger.to_state.attributes.friendly_name }} the alarm has been tripped, please investigate!"
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - service: notify.mobile_app_one_8
+        data:
+          title: Debs, the alarm has been tripped!
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+
+  # trigger alarm if Z4 door opened when alarm set to home ######
+  - id: SEC.010
+    alias: Trigger Alarm Z4 door opening detected
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.z4_sdrive20i_door_lock_state
+        from: "off"
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.home
+        state: 
+          - 'armed_home'
+      - condition: time
+        after: " 23:00:00"
+        before: " 06:00:00"
+    action:
+      - service: switch.turn_on
+        entity_id: light.cars_light
+      - service: notify.mobile_app_one_9
+        data_template:
+          title: "Rick, the Z4 door has been opened, please investigate!"
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      # - service: tts.cloud_say
+      #   entity_id: media_player.master_bedroom_sonos
+      #   data:
+      #     message: Rick, the Z4 door has been opened, please investigate!
+      #     options:
+      #       gender: female
+      #     language: en-GB  
+      - delay: 30
+      - service: switch.turn_off
+        entity_id: light.cars_light
+
+  # when alarm state changes from pending to triggered turn on siren
+  - id: SEC.005
+    alias: Alarm has progressed to triggered
+    trigger:
+      - platform: state
+        entity_id: alarm_control_panel.home
+        to: 'triggered'
+    condition:
+      - condition: state
+        entity_id: input_boolean.guest
+        state: 'off'
+    action: 
+      - service: notify.alarm_email
+        data:
+          title: Intruder Alert
+          message: The alarm has not been reset, siren about to sound. check Home Assistant
+      - service: light.turn_on
+        entity_id: light.hall_alarm
+        data: 
+          brightness: 255
+          color_name: red
+      - service: sonos.join
+        data:
+          master: media_player.living_room_sonos
+        entity_id:
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+          - media_player.master_bedroom_sonos
+      - service: sonos.snapshot
+        entity_id: media_player.living_room_sonos
+      - service: media_player.volume_set
+        entity_id:
+          - media_player.living_room_sonos
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+          - media_player.master_bedroom_sonos
+        data:
+          volume_level: 0.50
+      - service: tts.cloud_say
+        entity_id: media_player.living_room_sonos
+        data:
+          message: The siren will now activate in 10 seconds and the owners have been informed 
+          options:
+            gender: female
+          language: en-GB
+      - delay: 3
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+      - service: sonos.unjoin
+        data:
+          entity_id:
+          - media_player.living_room_sonos
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+          - media_player.master_bedroom_sonos
+      - delay: 00:00:10
+      - service: switch.turn_on
+        entity_id: 
+          - switch.morning_siren
+          - switch.garden_siren
+          - switch.cars_siren
+      # - service: light.turn_on # only used for testing purposes 
+      #   entity_id: light.lounge_ceiling
+
+  # when alarm state changes from pending to triggered turn lights at night
+  - id: SEC.006
+    alias: Alarm has progressed to triggered turn on lights at night
+    trigger:
+      - platform: state
+        entity_id: alarm_control_panel.home
+        to: 'triggered'
+    condition:
+      - condition: state
+        entity_id: input_boolean.guest
+        state: 'off'
+      - condition: sun
+        after: sunset
+        before: sunrise
+    action: 
+      - service: light.turn_on
+        entity_id: group.all_lights
+      - service: light.turn_on
+        entity_id: light.bed
+        data:
+          brightness: 255
+          rgb_color: [255,0,0]
+
+
+  # if alarm is reset automatically or reset by user turn off siren 
+  - id: SEC.007
+    alias: turn off alarm signals when reset 
+    trigger:
+    - platform: state
+      entity_id: alarm_control_panel.home
+      from: 
+        - 'pending'
+        - 'triggered'
+      to: 
+        - 'armed_away'
+        - 'armed_home'
+        - 'armed_vacation'
+        - 'disarmed'
+    action:
+      - service: script.turn_on
+        entity_id: script.light_flash_cancel
+      - service: light.turn_off
+        entity_id: light.hall_alarm
+      - service: sonos.join
+        data:
+          master: media_player.living_room_sonos
+        entity_id:
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+      - service: sonos.snapshot
+        entity_id: media_player.living_room_sonos
+      - service: media_player.volume_set
+        entity_id:
+          - media_player.living_room_sonos
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+        data:
+          volume_level: 0.20
+      - service: tts.cloud_say
+        entity_id: media_player.living_room_sonos
+        data:
+          message: The Alarm has been reset
+          options:
+            gender: female
+          language: en-GB
+      - delay: 3
+      - service: sonos.restore
+        entity_id: media_player.living_room_sonos
+      - service: sonos.unjoin
+        data:
+          entity_id:
+            - media_player.kitchen_sonos
+            - media_player.dining_room_sonos
+      - service: switch.turn_off
+        entity_id: switch.morning_siren
+      - service: switch.turn_off
+        entity_id: switch.garden_siren
+      - service: switch.turn_off
+        entity_id: switch.cars_siren
+      - service: light.turn_off
+        entity_id: light.hall
+
+
+  # ########## Security automation ALARM DISARMINIG ############################
+  # ############################################################################
+
+  # disarm alarm system early morning, before anyone needs to leave
+  - id: SEC.011
+    alias: Disarm in morning
+    trigger:
+      - platform: time
+        at: "05:00:00"
+    condition:
+      - condition: state
+        entity_id: group.family
+        state: 'home'
+      - condition: state
+        entity_id: alarm_control_panel.home
+        state: 'armed_home'
+    action:
+      - service: alarm_control_panel.alarm_disarm
+        entity_id: alarm_control_panel.home
+        data:
+          code: !secret alarm_code
+
+
+# MISCELLANEOUS SECURITY #########################################
+##################################################################
+  # Ring front door motion detector during hours of darkness #####
+  - id: SEC.012
+    alias: Front door motion
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door_motion
+    condition:
+      - condition: state
+        entity_id: binary_sensor.front_door_motion
+        state: 'on'
+      - after: sunset
+        before: sunrise
+        condition: sun
+    action:
+      - service: light.turn_on
+        entity_id: light.hall
+      - delay: 0:02
+      - service: light.turn_off
+        entity_id: light.hall_light
+
+  # notify each day that guest mode is on
+  - id: SEC.013
+    alias: Check Guest Mode
+    trigger:
+      - platform: time
+        at: "17:05:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.guest
+        state: 'on'
+    action:
+      - service: sonos.join
+        data:
+          master: media_player.living_room_sonos
+        entity_id:
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos
+      - service: sonos.snapshot
+        entity_id: all
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.living_room_sonos
+          message: Warning, Guest mode is still set
+          options:
+            gender: female
+          language: en-GB
+      - service: sonos.restore
+        entity_id: all
+      - service: sonos.unjoin
+        data:
+          master: media_player.living_room_sonos
+        entity_id:
+          - media_player.kitchen_sonos
+          - media_player.dining_room_sonos       
+
+#           ########################  END AUTOMATION ##########################

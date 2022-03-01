@@ -1,0 +1,26 @@
+##############################################################################
+#   @author         :   Richard Jenkins 
+#   @date           :   28/04/20
+#   @subject        :   notify File 
+#   @description    :   notifications for home assistant
+#   @version        :   1.1
+#   @Comment        :   Updated to ensure correct behaviour in GIT
+###############################################################################
+
+notify:
+  - name: alarm_email
+    platform: smtp
+    server: smtp.gmail.com
+    port: 587
+    timeout: 15
+    sender: rickjenks@gmail.com
+    encryption: starttls
+    username: rickjenks@gmail.com
+    password: !secret email_password
+    recipient:
+      #  - debs@southsea.uk.com
+      - house@southsea.uk.com
+      # - rick@southsea.uk.com
+      # - debs3562@hotmail.com
+      # - richard.jenkins@uk.ibm.com
+    sender_name: Home Assistant

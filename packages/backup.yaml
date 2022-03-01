@@ -1,0 +1,75 @@
+###############################################################################
+#   @author         :   Richard Jenkins
+#   @date           :   10/07/21
+#   @subject        :   Backup
+#   @description    :   Autobackup configuration
+#   @version        :   1.1
+#   @Comment        :   
+###############################################################################
+# Backup 4 x a day partial, Backup Tues to Sunday and remove daily backups > 7 days, Full backup once per week and retain 4 
+#
+
+automation:
+  - alias: Perform Auto Backup
+    id: BCK.001
+    trigger:
+      platform: time_pattern # Perform backup every 6 hours.
+      hours: "/6"
+    action:
+      service: auto_backup.backup_partial # Only perform a partial backup to save storage.
+      data:
+        name: "Partial_Backup: {{ now().strftime('%a, %-I:%M %p (%d/%m/%Y)') }}"
+        addons:
+          # - core_mariadb
+        folders:
+          - homeassistant
+          # - share
+        keep_days: 2
+
+  - alias: Perform Daily Backup
+    id: BCK.002
+    trigger:
+      platform: time
+      at: "02:30:00"
+    condition:
+      condition: time 
+      weekday: # daiy backup except Monday when weekly backup is completed
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+        - sun
+    action:
+      - service: auto_backup.purge
+      - service: auto_backup.backup_full
+        data:
+          name: "DailyBackup: {{ now().strftime('%A, %B %-d, %Y') }}"
+          keep_days: 7
+
+  - alias: Perform Weekly Backup
+    id: BCK.003
+    trigger:
+      platform: time
+      at: "02:30:00"
+    condition:
+      condition: time # On Mondays remove expired backups & perform a weekly backup
+      weekday:
+        - mon
+    action:
+      - service: auto_backup.backup_full
+        data:
+          name: "WeeklyBackup: {{ now().strftime('%A, %B %-d, %Y') }}"
+          keep_days: 28 # Store backup for a month, basically perform 1 backup each week and store for 4 weeks.
+      - service: auto_backup.purge
+
+  - alias: "Notify backup Failure"
+    id: BCK.004
+    trigger:
+      platform: event
+      event_type: auto_backup.backup_failed
+    action:
+      service: persistent_notification.create
+      data:
+        title: "Backup Failed."
+        message: "Name: {{ trigger.event.data.name }}\nError: {{ trigger.event.data.error }}"

@@ -1,0 +1,60 @@
+###############################################################################
+#   @author         :   Richard Jenkins
+#   @date           :  04/07/20
+#   @subject        :   Batteries
+#   @description    :   Battery Monitoring for home assistant
+#   @version        :   1.1
+#   @Comment        :   intial package based on version 1.2
+###############################################################################
+
+group:
+  batteries:
+    entities:
+      - sensor.kitchen_water_leak_battery
+      - sensor.utility_water_leak_battery
+      - sensor.utility_co_battery
+      - sensor.front_door_battery
+      - sensor.garage_door_battery
+      - sensor.garage_motion_battery
+      - sensor.garden_battery
+      - sensor.lounge_motion_battery
+      - sensor.bathroom_leak_battery
+      - sensor.bathroom_multi_battery
+      - sensor.kitchen_door_battery
+      - sensor.morning_room_window_battery
+      - sensor.morning_room_motion_battery
+      - sensor.hall_window_battery
+      - sensor.landing_motion_battery
+      - sensor.lounge_window_right_battery
+      - sensor.patio_door_battery
+      - sensor.hive_thermostat_battery
+      - sensor.frontdoor_battery
+      - sensor.toilet_leak_battery
+      - sensor.landing_smoke_battery
+      - sensor.smart_switch_bedroom_battery
+      - sensor.smart_switch_frontdoor_battery
+      - sensor.dining_room_window_battery
+      - sensor.fridge_multi_battery
+      - sensor.hall_motion_battery
+      - sensor.hall_smoke_battery
+      - sensor.hall_thermostat_battery
+      - sensor.kitchen_smoke_battery
+      - sensor.lounge_window_left_battery
+      - sensor.utility_multi_battery
+      - sensor.utility_window_battery
+      - sensor.cars_battery
+
+##################################  AUTOMATIONS ######################################
+
+automation:
+  - id: BAT.001
+    alias: "Power levels"
+    trigger:
+      - platform: numeric_state
+        entity_id: !include ../group_batteries.yaml
+        below: "20"
+    action:
+      - service: persistent_notification.create
+        data_template:
+          message: "{{ trigger.entity_id }} less than 20% - Battery needs replacing"
+          title: "Warning: Low Battery, please replace"

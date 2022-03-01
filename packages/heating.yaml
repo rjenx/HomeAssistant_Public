@@ -1,0 +1,230 @@
+###############################################################################
+#   @author         :   jenx (Copyright 2020 - 2021)
+#   @date           :   04/06/20
+#   @subject        :   Heating 
+#   @version        :   1.2
+#   @description    :   Heating Controls for home assistant
+###############################################################################
+
+##################################################
+# Groups
+##################################################
+
+group:
+  temp_sensors:
+    entities:
+      - sensor.lounge_multi_temperature
+      - sensor.bedroom_multi_temperature
+      - sensor.bathroom_multi_temperature
+      - sensor.thermostat_3_current_temperature
+
+##################################################
+# Automations
+##################################################
+automation:
+  - id: HEA.001
+    alias: Set heating to frost mode when away
+    trigger:
+      - entity_id: input_boolean.holiday
+        platform: state
+        to: 'on'
+    action:
+      - service: script.leave_home
+  
+  - id: HEA.002
+    alias: Set heating to auto on return 
+    trigger:
+      - entity_id: input_boolean.holiday
+        platform: state
+        to: 'off'
+    action:
+      - service: script.return_home
+
+  - id: HEA.003
+    alias: Turn off radiator if door or window is opened in hall
+    trigger:
+      - platform: state
+        entity_id:
+          - binary_sensor.frontdoor
+          - binary_sensor.hall_window
+        to: 'on'
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.hall_thermostat
+        data:
+          preset_mode: 'away'
+  
+  - id: HEA.008
+    alias: Turn on radiator if door or window is closed in hall
+    trigger:
+      - platform: state
+        entity_id:
+          - binary_sensor.frontdoor
+          - binary_sensor.hall_window
+        to: 'off'
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.hall_thermostat
+        data:
+          preset_mode: 'Comfort'   
+
+  - id: HEA:004
+    alias: turn on fan if bedroom temp exceeds Xc
+    mode: queued
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.bathroom_multi_temperature
+        above: 23
+    condition: 
+      - condition: time
+        after: "20:00:00"
+        before: "10:00:00"
+    action:
+      - service: switch.turn_on
+        entity_id: switch.bed_fan
+      - delay: 300
+      - service: switch.turn_off
+        entity_id: switch.bed_fan
+
+  - id: HEA.005
+    alias: Close window if its cold outside
+    trigger:
+      - platform: state
+        entity_id: light.bed
+        to: 'on'
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.bedroom_temp_diff
+        below: -5
+    action:
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.master_bedroom_sonos
+          message: The temperature outside is more than 5 degrees lower, you might wish to close the window
+
+  - id: HEA.006
+    alias: Temperature dropped below minimum 
+    mode: queued
+    max_exceeded: silent
+    max: 20
+    trigger:
+      - platform: numeric_state
+        entity_id: group.temp_sensors
+        below: 10
+    action:
+      - service: notify.mobile_app_one_9
+        data_template:
+          title: "Rick, the house is very cold please investigate heating state!"
+          message: TTS
+          data:
+            ttl: 0
+            priority: high
+            channel: alarm_stream_max
+      - delay: 
+          minutes: 5
+
+  # - id: HEA.007
+  #   alias: Control Hall Radiator
+  #   trigger:
+  #     - platform: numeric_state
+  #       entity_id: sensor.thermostat_3_current_temperature
+  #       # value_template: "{{ template }}"
+  #       below: 17
+  #       for: "00:10:00"
+  #   action:
+  #     - choose:
+  #       - conditions:
+  #           - condition: time
+  #             after: "16:00:00"
+  #             before: "23:00:00"
+  #             weekday:
+  #               - mon
+  #               - tue
+  #               - wed
+  #               - thu
+  #               - fri
+  #         sequence:
+  #           - service: climate.set_preset_mode
+  #             entity_id: climate.hall_thermostat
+  #             data:
+  #               preset_mode: 'Comfort'
+  #       - conditions:
+  #           - condition: time
+  #             after: "06:00:00"
+  #             before: "23:00:00"
+  #             weekday:
+  #               - sat
+  #               - sun
+  #         sequence:
+  #           - service: climate.set_preset_mode
+  #             entity_id: climate.hall_thermostat
+  #             data:
+  #               preset_mode: 'Comfort'
+
+##################################################
+# Scripts
+##################################################
+script:
+  # Set heating to frost protection 
+  leave_home:
+    sequence:
+      - service: climate.set_hvac_mode
+        target:
+          entity_id: climate.thermostat_3
+        data:
+          hvac_mode: 'off'
+      - service: water_heater.set_operation_mode
+        target:
+          entity_id: water_heater.hot_water
+        data:
+          operation_mode: 'off'
+  
+ # set heating back to auto on return home
+  return_home:
+    sequence:
+      - service: climate.set_hvac_mode
+        data:
+          hvac_mode: auto
+        target:
+          entity_id: climate.thermostat_3
+      - service: water_heater.set_operation_mode
+        target:
+          entity_id: water_heater.hot_water
+        data:
+          operation_mode: 'eco'
+
+  heat_off:
+    sequence:
+      - service: climate.set_hvac_mode
+        data:
+          hvac_mode: off
+        target:
+          entity_id: climate.thermostat_3
+
+  boost_hot_water:
+    sequence:
+      - service: hive.boost_hot_water
+        target:
+          entity_id: water_heater.hot_water
+        data:
+          time_period: '01:30:00'
+          on_off: on
+
+  cancel_boost_hot_water:
+    sequence:
+      - service: hive.boost_hot_water
+        target:
+          entity_id: water_heater.hot_water
+        data:
+          time_period: '01:30:00'
+          on_off: off
+##################################################
+# Input Boolean
+##################################################
+
+input_boolean:
+  holiday:
+    name: away for extended period
+    icon: mdi:hail
