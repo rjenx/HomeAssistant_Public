@@ -1,7 +1,7 @@
 # HomeAssistant_Public
  Public Version of my Home Assistant Installation 
 
-This is my fifth major version of Home Assistant. It controls around 50 devices and over 200 sensor entities. More detail on the devices and features of my implementation can be found below.
+This is my fifth major version of Home Assistant. It controls around 50 devices and over 200 sensor entities. More detail on the devices and features of my implementation can be found below. The only components missing are those with sensitive information such as secrets.yaml. 
 
 Issues are categorised in the following way: 
 
