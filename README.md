@@ -3,36 +3,7 @@
 
 This is my fifth major version of Home Assistant. It controls around 50 devices and over 200 sensor entities. More detail on the devices and features of my implementation can be found below. The only components missing are those with sensitive information such as secrets.yaml. 
 
-Issues are categorised in the following way: 
-
-**TAGS**
-
-**HW** - Hardware
-
-**HA** - Home Assistant 
-
-**OS** - Server Operating System 
-
-**UI** - Lovelace User Interface
-
-**IN** - Integrations
-
-**PROJECTS**
-
-Enhancement
-
-Bugs
-
-Research
-
-**PRIORITY**
-
-**Low** - 3 - 6 months 
-
-**Med** - 2 - 3 months 
-
-**High** - Immediate 
-
+Yaml is broken up into entity and sometimes function groups, this assists with working on specific objectives e.g. focus on security. However it makes it slightly more difficult where functionality affects multiple entities.
 
 **Features and hardware used in my Implenentation**
 
